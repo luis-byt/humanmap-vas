@@ -33,7 +33,7 @@ Copia los archivos o enlázalos desde GitHub Pages:
 <head>
   <meta charset="UTF-8">
   <title>HumanMap VAS Demo</title>
-  <script src="https://TU_USUARIO.github.io/humanmap-vas/humanmap-vas-standalone.js"></script>
+  <script src="https://luis-byt.github.io/humanmap-vas/humanmap-vas-standalone.js"></script>
 </head>
 <body>
   <h1>Demo de HumanMap VAS</h1>
@@ -108,3 +108,7 @@ export default {
 }
 </script>
 ```
+
+---
+
+## Ahora puedes disfrutar e interactar con una [demo](https://luis-byt.github.io/humanmap-vas/) de la herramienta.
