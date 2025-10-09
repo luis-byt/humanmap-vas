@@ -82,7 +82,11 @@ python manage.py collectstatic
 
 # ⚛️ Integración en Vue.js
 
-## Copia humanmap-vas-standalone.js dentro de public/ (o instala desde NPM cuando esté publicado).
+## Copia humanmap-vas-standalone.js dentro de public/ (o instala desde NPM
+
+```
+npm install humanmap-vas
+```
 
 ## En tu componente Vue:
 
