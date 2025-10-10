@@ -53,7 +53,7 @@
   <div class="footer">© Demo anatómica — Cabeza, Cuello y Tórax (Zonas de VAS+)</div>
 
   <script>
-    const map = document.getElementById('map');
+    const map = document.querySelector('human-map-vas');
     const out = document.getElementById('output');
 
     map.addEventListener('human-map-vas:select', e => {
@@ -65,5 +65,6 @@
       }
     });
   </script>
+
 </body>
 </html>

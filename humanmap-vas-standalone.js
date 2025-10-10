@@ -118,6 +118,10 @@
       this._zones=ZONES;
       this._selected=new Set();
 
+      this._upgradeProperty('selectedIds');
+      this._upgradeProperty('selectedZones');
+
+
       // Detectar automáticamente la ruta base del script (compatible con todos los entornos)
       let scriptBase = '';
       try {
@@ -148,8 +152,19 @@
       };
     }
 
-    connectedCallback(){this._renderShell();this._renderCanvas();}
+    // Captura valores asignados *antes* de que el custom element se registre
+    _upgradeProperty(prop) {
+      if (this.hasOwnProperty(prop)) {
+        const value = this[prop];
+        delete this[prop];     // elimina la propiedad “propia” del elemento “no mejorado”
+        this[prop] = value;    // re-ejecuta el setter ya del elemento mejorado
+      }
+    }
+
+    connectedCallback(){this._renderShell();this._renderCanvas();this.dispatchEvent(new CustomEvent('human-map-vas:ready'));}
+
     static get observedAttributes() { return ['view', 'img-root']; }
+
     attributeChangedCallback (name, oldValue, newValue) {
       if (oldValue === newValue) return;
 
@@ -172,6 +187,42 @@
         if (this._root) this._renderCanvas();
         return;
       }
+    }
+
+    // Devuelve solo IDs seleccionados
+    get selectedIds() {
+      return Array.from(this._selected);
+    }
+
+    // Asigna selección por IDs (array de strings)
+    set selectedIds(ids) {
+      if (!Array.isArray(ids)) return;
+      this._selected = new Set(ids);
+      if (this._root) { this._renderZones(); this._emit(); }
+    }
+
+    // Devuelve objetos completos (id, code, label, view)
+    get selectedZones() {
+      const map = new Map(this._zones.map(z => [z.id, z]));
+      return this.selectedIds.map(id => {
+        const z = map.get(id);
+        return z ? { id: z.id, code: z.code, label: z.label, view: z.view } : { id };
+      });
+    }
+
+    // Asigna selección pasando objetos (tomamos los IDs)
+    set selectedZones(zones) {
+      if (!Array.isArray(zones)) return;
+      const ids = zones.map(z => z && z.id).filter(Boolean);
+      this.selectedIds = ids;  // reutiliza el setter de IDs para redibujar y emitir
+    }
+
+    get selectedCodes() {
+      const map = new Map(this._zones.map(z => [z.id, z]));
+      return this.selectedIds.map(id => {
+        const z = map.get(id);
+        return z ? z.code : { id };
+      });
     }
 
     getSelected(){
