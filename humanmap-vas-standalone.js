@@ -117,19 +117,62 @@
       this._view=this.getAttribute('view') || 'head_right';
       this._zones=ZONES;
       this._selected=new Set();
-      this._bg={
-        head_right:'src/img/head_right.svg',
-        head_left:'src/img/head_left.svg',
-        neck_right:'src/img/neck_right.svg',
-        neck_left:'src/img/neck_left.svg',
-        thorax_front:'src/img/torax_front.svg',
-        thorax_back:'src/img/torax_back.svg'
+
+      // Detectar automáticamente la ruta base del script (compatible con todos los entornos)
+      let scriptBase = '';
+      try {
+        if (document.currentScript && document.currentScript.src) {
+          scriptBase = document.currentScript.src.split('/').slice(0, -1).join('/') + '/';
+        } else {
+          const scripts = document.getElementsByTagName('script');
+          if (scripts.length > 0) {
+            const last = scripts[scripts.length - 1];
+            scriptBase = last.src.split('/').slice(0, -1).join('/') + '/';
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ No se pudo detectar ruta base del script:', err);
+      }
+
+      // Definir la raíz de imágenes (desde atributo o autodetectada)
+      this._imgRoot = this.getAttribute('img-root') || (scriptBase + 'src/img/');
+
+      // Configurar rutas base
+      this._bg = {
+        head_right: this._imgRoot + 'head_right.svg',
+        head_left: this._imgRoot + 'head_left.svg',
+        neck_right: this._imgRoot + 'neck_right.svg',
+        neck_left: this._imgRoot + 'neck_left.svg',
+        thorax_front: this._imgRoot + 'torax_front.svg',
+        thorax_back: this._imgRoot + 'torax_back.svg'
       };
     }
 
     connectedCallback(){this._renderShell();this._renderCanvas();}
-    static get observedAttributes() { return ['view']; }
-    attributeChangedCallback(n,o,v){if(o!==v&&n==='view'){this._view=v;if(this._root)this._renderCanvas();}}
+    static get observedAttributes() { return ['view', 'img-root']; }
+    attributeChangedCallback (name, oldValue, newValue) {
+      if (oldValue === newValue) return;
+
+      if (name === 'view') {
+        this._view = newValue;
+        if (this._root) this._renderCanvas();
+        return;
+      }
+
+      if (name === 'img-root' && newValue) {
+        this._imgRoot = newValue.endsWith('/') ? newValue : newValue + '/';
+        this._bg = {
+          head_right: this._imgRoot + 'head_right.svg',
+          head_left: this._imgRoot + 'head_left.svg',
+          neck_right: this._imgRoot + 'neck_right.svg',
+          neck_left: this._imgRoot + 'neck_left.svg',
+          thorax_front: this._imgRoot + 'torax_front.svg',
+          thorax_back: this._imgRoot + 'torax_back.svg'
+        };
+        if (this._root) this._renderCanvas();
+        return;
+      }
+    }
 
     getSelected(){
       const map=new Map(this._zones.map(z=>[z.id,z]));
@@ -142,8 +185,12 @@
     clear(){this._selected.clear();this._renderZones();this._emit();}
 
     _renderShell(){
-      const style=document.createElement('style');style.textContent=STYLE;
-      this._root=document.createElement('div');this._root.className='hm';
+      const style=document.createElement('style');
+      style.textContent=STYLE;
+
+      this._root=document.createElement('div');
+      this._root.className='hm';
+
       const opts=VIEWS.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
       this._root.innerHTML=`
         <div class="hm-toolbar">
@@ -163,6 +210,7 @@
           </svg>
         </div>`;
       this.shadowRoot.append(style,this._root);
+
       this._els={
         cur:this.shadowRoot.getElementById('cur'),
         picker:this.shadowRoot.getElementById('picker'),
