@@ -11,15 +11,15 @@
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
     .zone.selected { fill: rgba(31,41,55,0.36); }
-    .label { fill:#0a0a0a; font-size:22px; pointer-events: none; user-select: none; text-anchor: middle; dominant-baseline: middle; font-weight:700; }
+    .label { fill:#0a0a0a; font-size:36px; pointer-events: none; user-select: none; text-anchor: middle; dominant-baseline: middle; font-weight:800; }
   `;
 
   // ───────────────────────────────────────────────────────────────────────────
   // ZONAS — Cabeza, Cuello, Tórax
   const ZONES = (() => {
     const cfg = {
-      head_right: {x0:0.10, x1:0.83, y0:0.20, y1:0.78},
-      head_left:  {x0:0.17, x1:0.90, y0:0.20, y1:0.78},
+      head_right: {x0:0.05, x1:0.90, y0:0.15, y1:0.80},
+      head_left:  {x0:0.10, x1:0.95, y0:0.15, y1:0.80},
       neck_right: {x0:0.25, x1:0.75, y0:0.37, y1:0.65},
       neck_left:  {x0:0.25, x1:0.75, y0:0.37, y1:0.65},
       thorax_front: {x0:0.10, x1:0.90, y0:0.35, y1:0.75},
@@ -114,7 +114,7 @@
     constructor(){
       super();
       this.attachShadow({mode:'open'});
-      this._view=this.getAttribute('view')||'head_right';
+      this._view=this.getAttribute('view') || 'head_right';
       this._zones=ZONES;
       this._selected=new Set();
       this._bg={
@@ -128,7 +128,7 @@
     }
 
     connectedCallback(){this._renderShell();this._renderCanvas();}
-    static get observedAttributes(){return['view'];}
+    static get observedAttributes() { return ['view']; }
     attributeChangedCallback(n,o,v){if(o!==v&&n==='view'){this._view=v;if(this._root)this._renderCanvas();}}
 
     getSelected(){
