@@ -10,16 +10,72 @@
       background: #f9fafb;
       color: #111827;
       margin: 0;
-      padding: 2rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Panel lateral */
+    .sidebar {
+      width: 280px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .sidebar h2 {
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      color: #1f2937;
+    }
+    .sidebar textarea {
+      width: 100%;
+      height: 250px;
+      resize: vertical;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      background: #f9fafb;
+      color: #111827;
+    }
+    .sidebar button {
+      margin-top: 0.5rem;
+      width: 100%;
+      padding: 8px;
+      font-weight: 600;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .sidebar button:hover {
+      background: #1d4ed8;
+    }
+
+    /* Contenedor principal (mapa + resultado) */
+    .main {
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-    human-map-vas {
-      max-width: 600px;
+      gap: 1rem;
+      max-width: 700px;
       width: 100%;
-      margin-bottom: 1.5rem;
     }
+
+    human-map-vas {
+      width: 100%;
+/*       max-width: 600px; */
+      margin-bottom: 1rem;
+    }
+
     pre {
       background: #1f2937;
       color: #f3f4f6;
@@ -30,41 +86,173 @@
       overflow-x: auto;
       font-size: 13px;
     }
+
     h1 {
       font-size: 1.6rem;
       margin-bottom: 0.5rem;
+      text-align: center;
+      width: 100%;
     }
+
     .footer {
       font-size: 13px;
       color: #6b7280;
       margin-top: 1rem;
     }
+    /* ✨ Efecto de parpadeo al copiar */
+    @keyframes flashCopy {
+      0%   { background-color: rgba(16, 185, 129, 0.25); }
+      100% { background-color: transparent; }
+    }
+    pre.copied {
+      animation: flashCopy 0.2s ease-out;
+    }
   </style>
 </head>
 <body>
-  <h1>🩺 Human Map VAS — Demo</h1>
-  <p>Puedes navegar entre las vistas de Cabeza, Cuello y Tórax con los botones ◀ ▶ y limpiar selección con 🔄</p>
 
-  <human-map-vas id="map" view="head_right"></human-map-vas>
+  <!-- CONTENIDO PRINCIPAL -->
+  <div class="main">
+    <h1>🩺 Human Map VAS — Demo Interactiva</h1>
+    <p>Puedes navegar entre las vistas con los botones ◀ ▶ y limpiar selección con 🔄</p>
 
-  <h2>Zonas seleccionadas:</h2>
-  <pre id="output">Ninguna zona seleccionada todavía.</pre>
+    <human-map-vas id="map" view="head_right"></human-map-vas>
 
-  <div class="footer">© Demo anatómica — Cabeza, Cuello y Tórax (Zonas de VAS+)</div>
+    <h2>Zonas seleccionadas:</h2>
+    <div class="output-wrapper" style="position: relative; width: 100%; max-width: 600px;">
+      <pre id="output" style="
+          background: #1f2937;
+          color: #f3f4f6;
+          padding: 1rem;
+          border-radius: 8px;
+          margin: 0;
+          width: 100%;
+          overflow-x: auto;
+          font-size: 13px;
+          font-family: monospace;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        ">Ninguna zona seleccionada todavía.</pre>
 
+      <!-- Botón flotante 📋 -->
+      <button id="copyBtn"
+        title="Copiar al portapapeles"
+        style="
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(55,65,81,0.85);
+          color: #f9fafb;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 16px;
+          padding: 4px 6px;
+          line-height: 1;
+          transition: background 0.2s ease;
+        ">📋</button>
+
+      <!-- Aviso visual al copiar -->
+      <span id="copyNotice"
+        style="
+          display: none;
+          position: absolute;
+          top: 8px;
+          right: 38px;
+          background: #10b981;
+          color: #fff;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          opacity: 0.95;
+        ">Copiado</span>
+    </div>
+
+    <div class="footer">© Demo anatómica — Cabeza, Cuello y Tórax (Zonas de VAS+)</div>
+  </div>
+
+  <!-- PANEL LATERAL -->
+  <div class="sidebar">
+    <h2>⚙️ Configuración</h2>
+    <p style="font-size:13px;color:#4b5563;">Carga una lista de zonas preseleccionadas:</p>
+    <textarea id="zoneInput">
+[
+  {
+    "id": "head_right-r1c1",
+    "code": "1.1.2.1",
+    "label": "1.1.2.1",
+    "view": "head_right"
+  },
+  {
+    "id": "head_right-r2c2",
+    "code": "1.1.3.2",
+    "label": "1.1.3.2",
+    "view": "head_right"
+  }
+]
+</textarea>
+    <button id="loadZones">Cargar zonas</button>
+  </div>
+
+  <!-- SCRIPT DE INTERACCIÓN -->
   <script>
-    const map = document.querySelector('human-map-vas');
-    const out = document.getElementById('output');
+    document.addEventListener('DOMContentLoaded', async () => {
+      await customElements.whenDefined('human-map-vas');
+      const map = document.querySelector('#map');
+      const out = document.getElementById('output');
+      const loadBtn = document.getElementById('loadZones');
+      const input = document.getElementById('zoneInput');
 
-    map.addEventListener('human-map-vas:select', e => {
-      const selected = e.detail.selected;
-      if (!selected.length) {
-        out.textContent = 'Ninguna zona seleccionada todavía.';
-      } else {
-        out.textContent = JSON.stringify(selected, null, 2);
-      }
+      // Botón para cargar zonas escritas en el panel lateral
+      loadBtn.addEventListener('click', () => {
+        try {
+          const zones = JSON.parse(input.value);
+          if (Array.isArray(zones)) {
+            map.selectedZones = zones;
+            out.textContent = JSON.stringify(map.selectedZones, null, 2);
+          } else {
+            alert('⚠️ El formato debe ser una lista de objetos JSON.');
+          }
+        } catch (err) {
+          alert('❌ Error al parsear JSON:\n' + err.message);
+        }
+      });
+
+      loadBtn.click();
+
+      // Mostrar en <pre> los cambios
+      map.addEventListener('human-map-vas:select', e => {
+        const selected = e.detail.selected;
+        out.textContent = selected.length
+          ? JSON.stringify(selected, null, 2)
+          : 'Ninguna zona seleccionada todavía.';
+      });
+
+      // --- Copiar al portapapeles dentro del área de resultados ---
+      const copyBtn = document.getElementById('copyBtn');
+      const copyNotice = document.getElementById('copyNotice');
+
+      copyBtn.addEventListener('click', async () => {
+        const text = out.textContent.trim();
+        if (!text || text === 'Ninguna zona seleccionada todavía.') return;
+
+        try {
+          await navigator.clipboard.writeText(text);
+
+          // Mostrar el aviso temporal
+          copyNotice.style.display = 'block';
+          setTimeout(() => { copyNotice.style.display = 'none'; }, 1200);
+
+          // ✨ Efecto de parpadeo en el <pre>
+          out.classList.add('copied');
+          setTimeout(() => out.classList.remove('copied'), 600);
+
+        } catch (err) {
+          console.error('Error copiando al portapapeles:', err);
+        }
+      });
     });
   </script>
-
 </body>
 </html>
