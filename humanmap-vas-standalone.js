@@ -7,7 +7,7 @@
     .hm-center { text-align:center; font-weight:600; color:#1f2937; }
     .hm-toolbar select, .hm-toolbar button { appearance:none; border:1px solid #d1d5db; border-radius:10px; padding:6px 10px; background:#fff; cursor:pointer; font-weight:500; }
     .hm-canvas-wrap { position:relative; width:100%; height:600px; margin:auto; aspect-ratio: 2/3; background:#fff; }
-    svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; }
+    svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; margin: auto; }
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
     .zone.readonly { cursor: default; }
@@ -18,6 +18,19 @@
     .hm-print-btn { position: absolute; top: 10px; right: 10px; background: rgba(17,24,39,0.85); color: #f9fafb; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; padding: 6px 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: opacity 0.25s ease, background 0.2s ease; opacity: 0; pointer-events: none; }
     .hm-canvas-wrap:hover .hm-print-btn { opacity: 1; pointer-events: auto; }
     .hm-print-btn:hover { background: rgba(37,99,235,0.9); }
+    .hm-zoom-float { position: absolute; bottom: 10px; right: 10px; background: rgba(31,41,55,0.85); color: #fff; border: none; border-radius: 50%; width: 42px; height: 42px; font-size: 20px; line-height: 1; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); transition: transform 0.2s ease, background 0.2s ease; z-index: 20; }
+    .hm-zoom-float:hover { transform: scale(1.08); background: rgba(31,41,55,1); }
+    .hm-zoom-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    .hm-zoom-modal.active { opacity: 1; pointer-events: auto; }
+    .hm-zoom-inner { position: relative; width: 95vw; height: 90vh; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; }
+    .hm-zoom-content { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #fff; overflow: auto; }
+    .hm-zoom-close { position: absolute; top: 12px; right: 12px; border: none; background: rgba(0, 0, 0, 0.75); color: #fff; border-radius: 50%; width: 42px; height: 42px; font-size: 24px; cursor: pointer; z-index: 10000; line-height: 1; }
+    .hm-zoom-close:hover { background: rgba(0, 0, 0, 0.9); }
+    .hm-zoom-modal svg { width: auto; height: auto; max-width: 100%; max-height: 100%; display: block; transition: transform 0.25s ease; }
+    .hm-zoom-inner { transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
+    .hm-zoom-modal.active .hm-zoom-inner { transform: scale(1); opacity: 1; }
+    .hm-zoom-hint { position: absolute; bottom: 10px; right: 20px; color: rgba(0,0,0,0.4); font-size: 14px; font-family: system-ui, sans-serif; background: rgba(255,255,255,0.7); padding: 4px 10px; border-radius: 6px; pointer-events: none; user-select: none; transition: opacity 1s ease 2s; opacity: 1; }
+
   `;
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -175,6 +188,13 @@
       this.dispatchEvent(new CustomEvent('human-map-vas:readonly-change', {
         detail: { readOnly: this._readOnly }
       }));
+
+      window.addEventListener('resize', () => {
+        if (this._view === 'all') {
+          clearTimeout(this._resizeTimer);
+          this._resizeTimer = setTimeout(() => this._renderAllViews(), 150);
+        }
+      });
     }
 
     static get observedAttributes() { return ['view', 'img-root', 'read-only']; }
@@ -185,6 +205,11 @@
       if (name === 'view') {
         this._view = newValue;
         if (this._root) this._renderCanvas();
+
+        this.dispatchEvent(new CustomEvent('human-map-vas:view-changed', {
+          detail: { view: newValue }
+        }));
+
         return;
       }
 
@@ -312,6 +337,7 @@
             <g id="zones"></g>
           </svg>
           <button id="printBtn" title="Imprimir vista" class="hm-print-btn">🖨️</button>
+          <button id="zoom-float" class="hm-zoom-float" title="Ampliar vista">⤢</button>
         </div>`;
       this.shadowRoot.append(style,this._root);
 
@@ -338,6 +364,8 @@
           this._printCanvasOnly(); // ⬅️ imprime solo el área actual
         }, 120);
       });
+      this._els.zoomFloat = this.shadowRoot.getElementById('zoom-float');
+      this._els.zoomFloat.addEventListener('click', () => this._openPreviewModal());
 
     }
 
@@ -366,6 +394,10 @@
         } else {
           printBtn.style.display = 'none';
         }
+      }
+
+      if (this._els.zoomFloat) {
+        this._els.zoomFloat.style.display = this._readOnly ? 'block' : 'none';
       }
 
       // Limpia cualquier render anterior (modo all o vista única)
@@ -411,9 +443,14 @@
       const svg = this._els.svg;
       svg.innerHTML = ''; // limpiar
 
-      // Creamos un grupo por cada vista
-      const cols = 2, gap = 40;
-      const cellW = 480, cellH = 720;
+      // Permitir configurar columnas dinámicas (por atributo) o calcular automáticamente
+      const defaultCols = 4;
+      const attrCols = parseInt(this.getAttribute('columns'), 10);
+      let cols = !isNaN(attrCols) && attrCols > 0 ? attrCols : defaultCols;
+
+      const gap = 80;
+      const cellW = 560, cellH = 720;
+
       const gridW = cols * (cellW + gap);
       const gridH = Math.ceil(VIEWS.length / cols) * (cellH + gap);
 
@@ -429,7 +466,9 @@
         const gy = row * (cellH + gap);
 
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        g.setAttribute('transform', `translate(${gx}, ${gy}) scale(0.45)`);
+        // Escala dinámica: reduce más si hay muchas columnas
+        const scale = Math.max(0.3, 0.9 - cols * 0.1);
+        g.setAttribute('transform', `translate(${gx}, ${gy}) scale(${scale})`);
 
         // Fondo (imagen)
         const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
@@ -511,6 +550,11 @@
 
         gRoot.appendChild(g);
       });
+
+      if (this._els.zoomFloat) {
+        this._els.zoomFloat.style.display = this._readOnly ? 'block' : 'none';
+      }
+
     }
 
     _renderZones(){
@@ -665,6 +709,156 @@
       });
     }
 
+    _openPreviewModal() {
+      if (!this._els || !this._els.svg) return;
+
+      // Clonar el SVG actual
+      const clone = this._els.svg.cloneNode(true);
+
+      // Asegurar que las imágenes se vean correctamente (usar rutas absolutas)
+      clone.querySelectorAll('image').forEach(img => {
+        const href = img.getAttribute('href') || img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if (href) {
+          const a = document.createElement('a');
+          a.href = href;
+          const abs = a.href;
+          img.setAttribute('href', abs);
+          img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', abs);
+        }
+      });
+
+      // Ajustar estilos dentro del SVG
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = `
+        .zone { fill: rgba(31,41,55,0); cursor: default; transition: fill 120ms ease; }
+        .zone.selected { fill: rgba(31,41,55,0.36); }
+        .label { fill: #0a0a0a; font-size: 42px; font-weight: 800;
+                text-anchor: middle; dominant-baseline: middle;
+                pointer-events: none; user-select: none; }
+        .hm-all-label {
+          font-family: system-ui, sans-serif;
+          font-size: 48px;
+          font-weight: 800;
+          fill: #111827;
+          text-anchor: middle;
+          dominant-baseline: middle;
+        }
+      `;
+      clone.insertBefore(style, clone.firstChild);
+
+      // Crear el modal
+      const modal = document.createElement('div');
+      modal.className = 'hm-zoom-modal';
+      modal.innerHTML = `
+        <div class="hm-zoom-inner">
+          <button class="hm-zoom-close" title="Cerrar">×</button>
+          <div class="hm-zoom-content"></div>
+          <div class="hm-zoom-hint">🖱️ Usa la rueda para hacer zoom y arrastra para mover. Presiona <strong>Esc</strong> para cerrar</div>
+        </div>
+      `;
+
+      // Insertar el SVG clonado dentro del modal
+      modal.querySelector('.hm-zoom-content').appendChild(clone);
+      this.shadowRoot.appendChild(modal);
+
+      // Forzar render y animación
+      requestAnimationFrame(() => modal.classList.add('active'));
+      // 🔒 Bloquear scroll del fondo
+      document.body.style.overflow = 'hidden';
+
+      // Cerrar modal
+      const close = () => {
+        modal.classList.remove('active');
+
+        // 🔓 Restaurar scroll del fondo
+        document.body.style.overflow = '';
+
+        setTimeout(() => modal.remove(), 300);
+
+        // Quitar listener del teclado al cerrar
+        document.removeEventListener('keydown', onKey);
+      };
+
+      modal.querySelector('.hm-zoom-close').addEventListener('click', close);
+      modal.addEventListener('click', e => {
+        if (e.target === modal) close();
+      });
+
+      // 🔑 Cerrar con tecla Escape
+      const onKey = e => {
+        if (e.key === 'Escape') close();
+      };
+      document.addEventListener('keydown', onKey);
+
+      // ───────────────────────────────
+      // 🔍 Zoom + Pan interactivo
+      // ───────────────────────────────
+      const content = modal.querySelector('.hm-zoom-content');
+      let scale = 1;
+      let translateX = 0, translateY = 0;
+      let isPanning = false;
+      let startX = 0, startY = 0;
+
+      content.addEventListener('wheel', e => {
+        e.preventDefault();
+
+        const rect = clone.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        const newScale = Math.min(Math.max(scale + delta, 0.5), 3);
+
+        // Mantener el punto bajo el puntero "anclado"
+        const dx = offsetX - (offsetX / scale) * newScale;
+        const dy = offsetY - (offsetY / scale) * newScale;
+        translateX += dx;
+        translateY += dy;
+
+        clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(${newScale})`;
+        clone.style.transformOrigin = '0 0';
+        scale = newScale;
+      });
+
+      // ───────────────────────────────
+      // 🖱️ Arrastrar (Pan)
+      // ───────────────────────────────
+      content.addEventListener('mousedown', e => {
+        e.preventDefault();
+        isPanning = true;
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        content.style.cursor = 'grabbing';
+      });
+
+      content.addEventListener('mousemove', e => {
+        if (!isPanning) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        clone.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      });
+
+      content.addEventListener('mouseup', () => {
+        isPanning = false;
+        content.style.cursor = 'default';
+      });
+
+      content.addEventListener('mouseleave', () => {
+        isPanning = false;
+        content.style.cursor = 'default';
+      });
+
+      // ───────────────────────────────
+      // 🔄 Doble clic para resetear vista
+      // ───────────────────────────────
+      content.addEventListener('dblclick', () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        clone.style.transform = '';
+      });
+
+    }
 
     _emit(){this.dispatchEvent(new CustomEvent('human-map-vas:select',{detail:{selected:this.getSelected()}}));}
   }

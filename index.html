@@ -175,6 +175,26 @@
       background: #2563eb;
       transform: scale(1.05);
     }
+    .sidebar-control {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 14px;
+    }
+    .sidebar-control label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 500;
+      color: #111827;
+    }
+    .sidebar-control input[type="range"] {
+      width: 100%;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+
   </style>
 </head>
 <body>
@@ -203,6 +223,7 @@
           view="head_right(default) || head_left || neck_right || neck_left || etc.."
           img-root="/path/to/locale/images/"
           read-only="true || false (default)"
+          columns="4"(default)
     -->
     <human-map-vas id="map"></human-map-vas>
 
@@ -285,16 +306,32 @@
     "view": "head_left"
   }
 ]</textarea>
-  <button id="loadZones">Cargar zonas</button>
+    <button id="loadZones">Cargar zonas</button>
 
-  <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
-  <p style="font-size:13px;color:#4b5563;">Activar / Desactivar modo solo lectura:</p>
-  <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
-    <input type="checkbox" id="toggleReadonly" style="accent-color:#2563eb;">
-    Modo solo lectura
-  </label>
+    <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
+    <p style="font-size:13px;color:#4b5563;">Activar / Desactivar modo solo lectura:</p>
+    <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+      <input type="checkbox" id="toggleReadonly" style="accent-color:#2563eb;">
+      Modo solo lectura
+    </label>
 
-  <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
+    <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
+
+    <div id="columnsControl" class="sidebar-control" style="display:none;">
+      <label for="columnsSlider">
+        🧩 Cantidad de columnas:
+        <span id="columnsValue">4</span>
+      </label>
+      <input
+        id="columnsSlider"
+        type="range"
+        min="2"
+        max="4"
+        step="1"
+        value="4"
+      />
+    </div>
+
 
   </div>
 
@@ -341,6 +378,43 @@
           ? JSON.stringify(selected, null, 2)
           : 'Ninguna zona seleccionada todavía.';
       });
+
+      // Referencias del control
+      const columnsControl = document.getElementById('columnsControl');
+      const columnsSlider = document.getElementById('columnsSlider');
+      const columnsValue = document.getElementById('columnsValue');
+
+      // Actualizar el slider y valor visible
+      columnsSlider.addEventListener('input', () => {
+        const value = parseInt(columnsSlider.value, 10);
+        columnsValue.textContent = value;
+        map.setAttribute('columns', value);
+        if (map.getAttribute('view') === 'all') {
+          map._renderAllViews();
+        }
+      });
+
+      // --- Mostrar u ocultar el control según vista ---
+      const updateColumnsVisibility = () => {
+        if (map.getAttribute('view') === 'all') {
+          columnsControl.style.display = 'flex';
+        } else {
+          columnsControl.style.display = 'none';
+        }
+      };
+
+      // Al iniciar
+      updateColumnsVisibility();
+
+      // Escuchar cuando cambie la vista desde el componente
+      map.addEventListener('human-map-vas:ready', updateColumnsVisibility);
+      map.addEventListener('human-map-vas:select', updateColumnsVisibility);
+      map.addEventListener('attributechange', updateColumnsVisibility);
+      map.addEventListener('human-map-vas:view-changed', e => {
+        const isGlobal = e.detail.view === 'all';
+        columnsControl.style.display = isGlobal ? 'flex' : 'none';
+      });
+
 
       // --- Copiar al portapapeles dentro del área de resultados ---
       const copyBtn = document.getElementById('copyBtn');
