@@ -10,6 +10,8 @@
     svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; }
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
+    .zone.readonly { cursor: default; }
+    .zone.readonly:not(.selected):hover { fill: rgba(31,41,55,0); }
     .zone.selected { fill: rgba(31,41,55,0.36); }
     .label { fill:#0a0a0a; font-size:36px; pointer-events: none; user-select: none; text-anchor: middle; dominant-baseline: middle; font-weight:800; }
   `;
@@ -117,6 +119,7 @@
       this._view=this.getAttribute('view') || 'head_right';
       this._zones=ZONES;
       this._selected=new Set();
+      this._readOnly = this.hasAttribute('read-only') && this.getAttribute('read-only') !== 'false';
 
       this._upgradeProperty('selectedIds');
       this._upgradeProperty('selectedZones');
@@ -161,9 +164,16 @@
       }
     }
 
-    connectedCallback(){this._renderShell();this._renderCanvas();this.dispatchEvent(new CustomEvent('human-map-vas:ready'));}
+    connectedCallback(){
+      this._renderShell();
+      this._renderCanvas();
+      this.dispatchEvent(new CustomEvent('human-map-vas:ready'));
+      this.dispatchEvent(new CustomEvent('human-map-vas:readonly-change', {
+        detail: { readOnly: this._readOnly }
+      }));
+    }
 
-    static get observedAttributes() { return ['view', 'img-root']; }
+    static get observedAttributes() { return ['view', 'img-root', 'read-only']; }
 
     attributeChangedCallback (name, oldValue, newValue) {
       if (oldValue === newValue) return;
@@ -185,6 +195,18 @@
           thorax_back: this._imgRoot + 'torax_back.svg'
         };
         if (this._root) this._renderCanvas();
+        return;
+      }
+
+      if (name === 'read-only') {
+        this._readOnly = newValue !== null && newValue !== 'false';
+
+        if (this._root) this._renderZones(); // refrescar para desactivar clics
+
+        this.dispatchEvent(new CustomEvent('human-map-vas:readonly-change', {
+          detail: { readOnly: this._readOnly }
+        }));
+
         return;
       }
     }
@@ -309,19 +331,34 @@
       Z.forEach(z=>{
         const{x,y,w,h}=z.shape;
         const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+
         rect.setAttribute('x',x*vw);rect.setAttribute('y',y*vh);
         rect.setAttribute('width',w*vw);rect.setAttribute('height',h*vh);
         rect.setAttribute('rx',Math.min(w*vw,h*vh)*0.1);
+
         rect.classList.add('zone');
-        if(this._selected.has(z.id))rect.classList.add('selected');
-        rect.addEventListener('click',e=>{
-          e.stopPropagation();
-          if(this._selected.has(z.id))this._selected.delete(z.id);
-          else this._selected.add(z.id);
-          this._renderZones();this._emit();
-        });
+
+        if (this._selected.has(z.id)) rect.classList.add('selected');
+
+        // Si está en modo lectura, añadir clase visual
+        if (this._readOnly) {
+          rect.classList.add('readonly');
+        } else {
+          rect.classList.remove('readonly');
+          rect.addEventListener('click', e => {
+            e.stopPropagation();
+            if (this._selected.has(z.id)) this._selected.delete(z.id);
+            else this._selected.add(z.id);
+            this._renderZones();
+            this._emit();
+          });
+        }
+
+
         g.appendChild(rect);
+
         const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+
         t.setAttribute('x',(x+w/2)*vw);
         t.setAttribute('y',(y+h/2)*vh);
         t.textContent=z.code;

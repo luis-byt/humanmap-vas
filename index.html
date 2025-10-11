@@ -116,6 +116,11 @@
     <h1>🩺 Human Map VAS — Demo Interactiva</h1>
     <p>Puedes navegar entre las vistas con los botones ◀ ▶ y limpiar selección con 🔄</p>
 
+    <!-- attrs:
+          view="head_right(default) || head_left || neck_right || neck_left || etc.."
+          img-root="/path/to/locale/images/"
+          read-only="true || false (default)"
+    -->
     <human-map-vas id="map" view="head_right"></human-map-vas>
 
     <h2>Zonas seleccionadas:</h2>
@@ -191,8 +196,18 @@
     "view": "head_right"
   }
 ]
-</textarea>
-    <button id="loadZones">Cargar zonas</button>
+  </textarea>
+  <button id="loadZones">Cargar zonas</button>
+
+  <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
+
+  <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+    <input type="checkbox" id="toggleReadonly" style="accent-color:#2563eb;">
+    Modo solo lectura
+  </label>
+
+  <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
+
   </div>
 
   <!-- SCRIPT DE INTERACCIÓN -->
@@ -252,6 +267,27 @@
           console.error('Error copiando al portapapeles:', err);
         }
       });
+
+      // --- Alternar modo solo lectura ---
+      const readonlyToggle = document.getElementById('toggleReadonly');
+
+      // sincroniza el checkbox al iniciar o al cambiar desde fuera
+      map.addEventListener('human-map-vas:readonly-change', e => {
+        readonlyToggle.checked = e.detail.readOnly;
+      });
+
+      // sincronizar al cargar si el atributo ya estaba presente
+      readonlyToggle.checked = map.hasAttribute('read-only') && map.getAttribute('read-only') !== 'false';
+
+      // escucha interacciones del usuario
+      readonlyToggle.addEventListener('change', () => {
+        if (readonlyToggle.checked) {
+          map.setAttribute('read-only', 'true');
+        } else {
+          map.removeAttribute('read-only');
+        }
+      });
+
     });
   </script>
 </body>
