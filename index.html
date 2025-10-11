@@ -17,7 +17,6 @@
       justify-content: center;
       align-items: flex-start;
     }
-
     /* Panel lateral */
     .sidebar {
       width: 280px;
@@ -34,16 +33,20 @@
       color: #1f2937;
     }
     .sidebar textarea {
-      width: 100%;
-      height: 250px;
-      resize: vertical;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      padding: 8px;
+      width: 95%;
+      height: 390px;
       font-family: monospace;
       font-size: 13px;
-      background: #f9fafb;
-      color: #111827;
+      background: #1f2937;
+      color: #d1d5db;
+      line-height: 1.5;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 10px 12px;
+      outline: none;
+      resize: vertical;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+      transition: border 0.2s ease, box-shadow 0.2s ease;
     }
     .sidebar button {
       margin-top: 0.5rem;
@@ -72,7 +75,6 @@
 
     human-map-vas {
       width: 100%;
-/*       max-width: 600px; */
       margin-bottom: 1rem;
     }
 
@@ -107,6 +109,72 @@
     pre.copied {
       animation: flashCopy 0.2s ease-out;
     }
+    .info-box {
+      position: relative;
+      background: #eef2f7;
+      border-left: 4px solid #3b82f6;
+      padding: 0.75rem 1rem;
+      margin: 0.75rem 0 1.5rem 0;
+      border-radius: 6px;
+      color: #1f2937;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .info-box strong {
+      display: block;
+      margin-bottom: 0.3rem;
+      color: #111827;
+    }
+    .info-box ul {
+      margin: 0.4rem 0 0 1.2rem;
+      padding: 0;
+    }
+    .info-box li {
+      margin-bottom: 0.3rem;
+    }
+    .close-info {
+      position: absolute;
+      top: 6px;
+      right: 10px;
+      border: none;
+      background: transparent;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #4b5563;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s ease;
+    }
+    .close-info:hover {
+      color: #111827;
+    }
+    .countdown-text {
+      margin-top: 0.6rem;
+      font-size: 0.8rem;
+      color: #6b7280;
+      opacity: 0.8;
+      text-align: right;
+    }
+    #helpButton {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    #helpButton:hover {
+      background: #2563eb;
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -114,14 +182,29 @@
   <!-- CONTENIDO PRINCIPAL -->
   <div class="main">
     <h1>🩺 Human Map VAS — Demo Interactiva</h1>
-    <p>Puedes navegar entre las vistas con los botones ◀ ▶ y limpiar selección con 🔄</p>
+    <p>Puedes navegar entre las vistas de Cabeza, Cuello y Tórax con los botones ◀ ▶ y limpiar selección con 🔄</p>
+
+    <div class="info-box" id="infoBox">
+      <button class="close-info" title="Cerrar">×</button>
+      <strong>💡 Sobre las vistas y el modo de solo lectura:</strong>
+      <ul>
+        <li>El selector superior te permite cambiar entre las diferentes vistas anatómicas o mostrar <em>Todas</em> a la vez.</li>
+        <li>Cuando activas el modo <strong>solo lectura</strong>, las zonas ya seleccionadas permanecen visibles pero no puedes interactuar con ellas.</li>
+        <li>El modo de solo lectura es útil para <em>mostrar resultados guardados</em> sin riesgo de modificarlos accidentalmente.</li>
+        <li>En modo global + solo lectura, la barra de herramientas se oculta y aparece un botón 🖨️ para imprimir o guardar la vista en PDF.</li>
+      </ul>
+      <div class="countdown-text" id="countdownText"></div>
+    </div>
+
+    <!-- Botón flotante para reabrir -->
+    <button id="helpButton" title="Mostrar ayuda">ℹ️</button>
 
     <!-- attrs:
           view="head_right(default) || head_left || neck_right || neck_left || etc.."
           img-root="/path/to/locale/images/"
           read-only="true || false (default)"
     -->
-    <human-map-vas id="map" view="head_right"></human-map-vas>
+    <human-map-vas id="map"></human-map-vas>
 
     <h2>Zonas seleccionadas:</h2>
     <div class="output-wrapper" style="position: relative; width: 100%; max-width: 600px;">
@@ -181,7 +264,7 @@
   <div class="sidebar">
     <h2>⚙️ Configuración</h2>
     <p style="font-size:13px;color:#4b5563;">Carga una lista de zonas preseleccionadas:</p>
-    <textarea id="zoneInput">
+    <textarea id="zoneInput" placeholder="[]">
 [
   {
     "id": "head_right-r1c1",
@@ -194,13 +277,18 @@
     "code": "1.1.3.2",
     "label": "1.1.3.2",
     "view": "head_right"
+  },
+  {
+    "id": "head_left-r1c3",
+    "code": "1.2.2.1",
+    "label": "1.2.2.1",
+    "view": "head_left"
   }
-]
-  </textarea>
+]</textarea>
   <button id="loadZones">Cargar zonas</button>
 
   <hr style="margin:1rem 0; border:none; border-top:1px solid #e5e7eb;">
-
+  <p style="font-size:13px;color:#4b5563;">Activar / Desactivar modo solo lectura:</p>
   <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
     <input type="checkbox" id="toggleReadonly" style="accent-color:#2563eb;">
     Modo solo lectura
@@ -218,19 +306,29 @@
       const out = document.getElementById('output');
       const loadBtn = document.getElementById('loadZones');
       const input = document.getElementById('zoneInput');
+      const readonlyToggle = document.getElementById('toggleReadonly');
 
       // Botón para cargar zonas escritas en el panel lateral
       loadBtn.addEventListener('click', () => {
-        try {
-          const zones = JSON.parse(input.value);
-          if (Array.isArray(zones)) {
-            map.selectedZones = zones;
-            out.textContent = JSON.stringify(map.selectedZones, null, 2);
-          } else {
-            alert('⚠️ El formato debe ser una lista de objetos JSON.');
+
+        const text = zoneInput.value.trim();
+
+        if (!text) {
+          // No hay contenido: limpiar zonas o mostrar aviso
+          map.selectedZones = [];
+          console.warn('⚠️ El campo de zonas está vacío. No se cargó ningún dato.');
+        } else {
+          try {
+            const zones = JSON.parse(input.value);
+            if (Array.isArray(zones)) {
+              map.selectedZones = zones;
+              out.textContent = JSON.stringify(map.selectedZones, null, 2);
+            } else {
+              alert('⚠️ El formato debe ser una lista de objetos JSON.');
+            }
+          } catch (err) {
+            alert('❌ Error al parsear JSON:\n' + err.message);
           }
-        } catch (err) {
-          alert('❌ Error al parsear JSON:\n' + err.message);
         }
       });
 
@@ -268,9 +366,6 @@
         }
       });
 
-      // --- Alternar modo solo lectura ---
-      const readonlyToggle = document.getElementById('toggleReadonly');
-
       // sincroniza el checkbox al iniciar o al cambiar desde fuera
       map.addEventListener('human-map-vas:readonly-change', e => {
         readonlyToggle.checked = e.detail.readOnly;
@@ -279,6 +374,29 @@
       // sincronizar al cargar si el atributo ya estaba presente
       readonlyToggle.checked = map.hasAttribute('read-only') && map.getAttribute('read-only') !== 'false';
 
+      // Actualiza el estado de edición según el modo de solo lectura
+      function updateReadOnlyUI() {
+        const isReadOnly = map.getAttribute('read-only') === 'true';
+
+        // Desactivar o activar textarea y botón
+        if (input) input.disabled = isReadOnly;
+        if (loadBtn) loadBtn.disabled = isReadOnly;
+
+        // Ajustar estilo visual (opcional)
+        const opacity = isReadOnly ? 0.6 : 1;
+        const cursor = isReadOnly ? 'not-allowed' : 'text';
+
+        if (input) {
+          input.style.opacity = opacity;
+          input.style.cursor = cursor;
+        }
+
+        if (loadBtn) {
+          loadBtn.style.opacity = opacity;
+          loadBtn.style.cursor = isReadOnly ? 'not-allowed' : 'pointer';
+        }
+      }
+
       // escucha interacciones del usuario
       readonlyToggle.addEventListener('change', () => {
         if (readonlyToggle.checked) {
@@ -286,6 +404,87 @@
         } else {
           map.removeAttribute('read-only');
         }
+        updateReadOnlyUI();
+      });
+
+      const INFO_KEY = 'humanmap_info_closed';
+      const infoBox = document.getElementById('infoBox');
+      const closeInfo = infoBox?.querySelector('.close-info');
+      const countdownText = document.getElementById('countdownText');
+      const helpButton = document.getElementById('helpButton');
+      const AUTO_CLOSE_TIME = 10; // segundos iniciales
+
+      let timer, countdownInterval;
+      let remaining = AUTO_CLOSE_TIME;
+
+      // Función para cerrar con animación y guardar estado
+      const closeBox = () => {
+        if (!infoBox) return;
+        infoBox.style.opacity = '0';
+        infoBox.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          infoBox.remove();
+          localStorage.setItem(INFO_KEY, 'true');
+        }, 300);
+      };
+
+      // Función para iniciar la cuenta regresiva
+      const startCountdown = () => {
+        remaining = AUTO_CLOSE_TIME;
+        countdownText.textContent = `Este mensaje se autodestruirá en ${remaining}s`;
+        countdownInterval = setInterval(() => {
+          remaining--;
+          if (remaining > 0) {
+            countdownText.textContent = `Este mensaje se autodestruirá en ${remaining}s`;
+          } else {
+            clearInterval(countdownInterval);
+            closeBox();
+          }
+        }, 1000);
+      };
+
+      // Mostrar u ocultar el botón de ayuda según el estado
+      const showHelpButton = (show) => {
+        helpButton.style.display = show ? 'block' : 'none';
+      };
+
+      // Si ya se cerró el mensaje antes
+      if (localStorage.getItem(INFO_KEY) === 'true') {
+        if (infoBox) infoBox.remove();
+        showHelpButton(true);
+      } else {
+        showHelpButton(false);
+        startCountdown();
+        // Cierre automático
+        timer = setTimeout(closeBox, AUTO_CLOSE_TIME * 1000);
+        infoBox.addEventListener('mouseenter', () => {
+          clearTimeout(timer);
+          clearInterval(countdownInterval);
+        });
+        infoBox.addEventListener('mouseleave', () => {
+          timer = setTimeout(closeBox, 5000);
+          remaining = 5;
+          countdownText.textContent = `Este mensaje se autodestruirá en ${remaining}s`;
+          clearInterval(countdownInterval);
+          countdownInterval = setInterval(() => {
+            remaining--;
+            if (remaining > 0) {
+              countdownText.textContent = `Este mensaje se autodestruirá en ${remaining}s`;
+            } else {
+              clearInterval(countdownInterval);
+              closeBox();
+            }
+          }, 1000);
+        });
+      }
+
+      // Cierre manual
+      if (closeInfo) closeInfo.addEventListener('click', closeBox);
+
+      // Reabrir el mensaje al hacer clic en el botón de ayuda
+      helpButton.addEventListener('click', () => {
+        localStorage.removeItem(INFO_KEY);
+        location.reload(); // recarga la página para mostrar el mensaje otra vez
       });
 
     });

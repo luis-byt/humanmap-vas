@@ -6,14 +6,18 @@
     .hm-toolbar { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #eef2f7; background:#fafafa; }
     .hm-center { text-align:center; font-weight:600; color:#1f2937; }
     .hm-toolbar select, .hm-toolbar button { appearance:none; border:1px solid #d1d5db; border-radius:10px; padding:6px 10px; background:#fff; cursor:pointer; font-weight:500; }
-    .hm-canvas-wrap { position:relative; width:100%; height:512px; margin:auto; aspect-ratio: 2/3; background:#fff; }
+    .hm-canvas-wrap { position:relative; width:100%; height:600px; margin:auto; aspect-ratio: 2/3; background:#fff; }
     svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; }
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
     .zone.readonly { cursor: default; }
     .zone.readonly:not(.selected):hover { fill: rgba(31,41,55,0); }
     .zone.selected { fill: rgba(31,41,55,0.36); }
+    .hm-all-label { fill: #111827; font-weight: 700; font-size: 36px; text-anchor: middle; dominant-baseline: middle; }
     .label { fill:#0a0a0a; font-size:36px; pointer-events: none; user-select: none; text-anchor: middle; dominant-baseline: middle; font-weight:800; }
+    .hm-print-btn { position: absolute; top: 10px; right: 10px; background: rgba(17,24,39,0.85); color: #f9fafb; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; padding: 6px 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: opacity 0.25s ease, background 0.2s ease; opacity: 0; pointer-events: none; }
+    .hm-canvas-wrap:hover .hm-print-btn { opacity: 1; pointer-events: auto; }
+    .hm-print-btn:hover { background: rgba(37,99,235,0.9); }
   `;
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -199,16 +203,32 @@
       }
 
       if (name === 'read-only') {
-        this._readOnly = newValue !== null && newValue !== 'false';
+        this._readOnly = newValue === 'true' || newValue === true;
 
-        if (this._root) this._renderZones(); // refrescar para desactivar clics
+        if (this._root) {
+          // Refrescar la vista completamente según el modo
+          if (this._view === 'all') {
+            this._renderAllViews();
+          } else {
+            this._renderCanvas();
+          }
 
-        this.dispatchEvent(new CustomEvent('human-map-vas:readonly-change', {
-          detail: { readOnly: this._readOnly }
-        }));
+          // Actualizar la visibilidad de toolbar y botón de impresión
+          const toolbar = this._root.querySelector('.hm-toolbar');
+          const printBtn = this.shadowRoot.getElementById('printBtn');
+
+          if (this._view === 'all' && this._readOnly) {
+            if (toolbar) toolbar.style.display = 'none';
+            if (printBtn) printBtn.style.display = 'block';
+          } else {
+            if (toolbar) toolbar.style.display = '';
+            if (printBtn) printBtn.style.display = 'none';
+          }
+        }
 
         return;
       }
+
     }
 
     // Devuelve solo IDs seleccionados
@@ -220,7 +240,13 @@
     set selectedIds(ids) {
       if (!Array.isArray(ids)) return;
       this._selected = new Set(ids);
-      if (this._root) { this._renderZones(); this._emit(); }
+
+      if (this._root) {
+        // Si está en modo global, renderizamos todas las vistas
+        if (this._view === 'all') this._renderAllViews();
+        else this._renderZones();
+        this._emit();
+      }
     }
 
     // Devuelve objetos completos (id, code, label, view)
@@ -264,7 +290,11 @@
       this._root=document.createElement('div');
       this._root.className='hm';
 
-      const opts=VIEWS.map(v=>`<option value="${v.id}">${v.label}</option>`).join('');
+      const opts = [
+        `<option value="all">Todas las vistas</option>`,
+        ...VIEWS.map(v => `<option value="${v.id}">${v.label}</option>`)
+      ].join('');
+
       this._root.innerHTML=`
         <div class="hm-toolbar">
           <button id="prev">◀</button>
@@ -281,6 +311,7 @@
             <g id="bg"></g>
             <g id="zones"></g>
           </svg>
+          <button id="printBtn" title="Imprimir vista" class="hm-print-btn">🖨️</button>
         </div>`;
       this.shadowRoot.append(style,this._root);
 
@@ -299,6 +330,15 @@
       this._els.prev.addEventListener('click',()=>this._cycle(-1));
       this._els.next.addEventListener('click',()=>this._cycle(1));
       this._els.reset.addEventListener('click',()=>this.clear());
+      this._els.printBtn = this.shadowRoot.getElementById('printBtn');
+      this._els.printBtn.addEventListener('click', () => {
+        this._els.printBtn.style.transform = 'scale(0.94)';
+        setTimeout(() => {
+          this._els.printBtn.style.transform = '';
+          this._printCanvasOnly(); // ⬅️ imprime solo el área actual
+        }, 120);
+      });
+
     }
 
     _cycle(dir){
@@ -308,8 +348,55 @@
     }
 
     _renderCanvas(){
-      const layout=VIEW_LAYOUTS[this._view];
-      const v=VIEWS.find(v=>v.id===this._view);
+      // Ocultar toolbar si está en modo global y solo lectura
+      if (this._els && this._root) {
+        const toolbar = this._root.querySelector('.hm-toolbar');
+        if (this._view === 'all' && this._readOnly) {
+          toolbar.style.display = 'none';
+        } else {
+          toolbar.style.display = '';
+        }
+      }
+
+      // Mostrar botón de impresión solo en modo global + solo lectura
+      const printBtn = this.shadowRoot.getElementById('printBtn');
+      if (printBtn) {
+        if (this._view === 'all' && this._readOnly) {
+          printBtn.style.display = 'block';
+        } else {
+          printBtn.style.display = 'none';
+        }
+      }
+
+      // Limpia cualquier render anterior (modo all o vista única)
+      if (this._els && this._els.svg) {
+        this._els.svg.innerHTML = `
+          <defs id="defs"></defs>
+          <g id="bg"></g>
+          <g id="zones"></g>
+        `;
+        this._els.bg = this._els.svg.querySelector('#bg');
+        this._els.zones = this._els.svg.querySelector('#zones');
+      }
+
+      // 🆕 Detección de modo global
+      if (this._view === 'all') {
+        this._renderAllViews();
+        this._els.cur.textContent = 'Todas las vistas';
+        this._els.picker.value = 'all';
+        this._els.prev.disabled = true;
+        this._els.next.disabled = true;
+        this._els.reset.disabled = this._readOnly;
+        return;
+      } else {
+        this._els.prev.disabled = false;
+        this._els.next.disabled = false;
+        this._els.reset.disabled = false;
+      }
+
+      // --- Render normal ---
+      const layout = VIEW_LAYOUTS[this._view];
+      const v = VIEWS.find(v => v.id === this._view);
       if(!layout||!v)return;
       this._els.cur.textContent=v.label;
       this._els.picker.value=v.id;
@@ -318,6 +405,112 @@
       const[vx,vy,vw,vh]=layout.vb;
       this._els.bg.innerHTML=`<image href="${url}" x="0" y="${layout.y}" width="${vw}" height="${layout.h}" preserveAspectRatio="xMidYMid meet"/>`;
       this._renderZones();
+    }
+
+    _renderAllViews() {
+      const svg = this._els.svg;
+      svg.innerHTML = ''; // limpiar
+
+      // Creamos un grupo por cada vista
+      const cols = 2, gap = 40;
+      const cellW = 480, cellH = 720;
+      const gridW = cols * (cellW + gap);
+      const gridH = Math.ceil(VIEWS.length / cols) * (cellH + gap);
+
+      svg.setAttribute('viewBox', `0 0 ${gridW} ${gridH}`);
+      const gRoot = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      svg.appendChild(gRoot);
+
+      VIEWS.forEach((v, i) => {
+        const layout = VIEW_LAYOUTS[v.id] || { vb: [0, 0, 1024, 1536], y: 0, h: 1536, rotate: 0 };
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const gx = col * (cellW + gap);
+        const gy = row * (cellH + gap);
+
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${gx}, ${gy}) scale(0.45)`);
+
+        // Fondo (imagen)
+        const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+        img.setAttribute('href', this._bg[v.id]);
+        img.setAttribute('x', '0');
+        img.setAttribute('y', layout?.y || 0);
+        img.setAttribute('width', layout?.vb[2] || 1024);
+        img.setAttribute('height', layout?.h || 1536);
+        img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        g.appendChild(img);
+
+        // Grupo para las zonas (permite rotar sin afectar la imagen)
+        const gZones = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+        // Rotar solo las zonas del cuello
+        let rotation = 0;
+        if (v.id === 'neck_right') rotation = 12;
+        if (v.id === 'neck_left') rotation = -12;
+        if (rotation !== 0) {
+          gZones.setAttribute(
+            'transform',
+            `rotate(${rotation}, ${layout.vb[2]*0.55}, ${layout.vb[3]*0.45})`
+          );
+        }
+
+        // --- Dibujar zonas ---
+        const zones = this._zones.filter(z => z.view === v.id);
+        zones.forEach(z => {
+          const { x, y, w, h } = z.shape;
+
+          // Zona rectangular
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', x * layout.vb[2]);
+          rect.setAttribute('y', y * layout.vb[3]);
+          rect.setAttribute('width', w * layout.vb[2]);
+          rect.setAttribute('height', h * layout.vb[3]);
+          rect.setAttribute('rx', Math.min(w, h) * layout.vb[2] * 0.1);
+          rect.classList.add('zone');
+          if (this._selected.has(z.id)) rect.classList.add('selected');
+          if (this._readOnly) {
+            rect.classList.add('readonly');
+          } else {
+            rect.addEventListener('click', e => {
+              e.stopPropagation();
+              if (this._selected.has(z.id)) this._selected.delete(z.id);
+              else this._selected.add(z.id);
+              this._renderAllViews(); // refrescar vista global
+              this._emit();
+            });
+          }
+          gZones.appendChild(rect);
+
+          // Label centrado
+          const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          t.textContent = z.code;
+          t.setAttribute('x', (x + w / 2) * layout.vb[2]);
+          t.setAttribute('y', (y + h / 2) * layout.vb[3]);
+          t.setAttribute('fill', '#0a0a0a');
+          t.setAttribute('font-size', '32');
+          t.setAttribute('font-weight', '700');
+          t.setAttribute('text-anchor', 'middle');
+          t.setAttribute('dominant-baseline', 'middle');
+          t.setAttribute('pointer-events', 'none');
+          gZones.appendChild(t);
+        });
+
+        // Añadir grupo de zonas dentro del grupo principal
+        g.appendChild(gZones);
+
+
+        // Label de la vista
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.textContent = v.label;
+        t.setAttribute('x', layout.vb[2] / 2);
+        t.setAttribute('y', 80);
+        t.setAttribute('class', 'hm-all-label');
+        g.appendChild(t);
+
+
+        gRoot.appendChild(g);
+      });
     }
 
     _renderZones(){
@@ -366,6 +559,112 @@
         g.appendChild(t);
       });
     }
+
+    // Imprime solo el área visible (hm-canvas-wrap) en una nueva ventana
+    _printCanvasOnly() {
+      if (!this._els || !this._els.svg) return;
+
+      // Clonar el SVG actual completo (vistas individuales o "all")
+      const clone = this._els.svg.cloneNode(true);
+
+      // Asegurar rutas absolutas en <image> (importante para que se muestren)
+      clone.querySelectorAll('image').forEach(img => {
+        const href = img.getAttribute('href') || img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+        if (href) {
+          const a = document.createElement('a');
+          a.href = href;
+          const abs = a.href;
+          img.setAttribute('href', abs);
+          img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', abs);
+        }
+      });
+
+      // Inyectar los estilos básicos directamente en el SVG (para conservar colores y transparencias)
+      const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = `
+        .zone { fill: rgba(31,41,55,0); cursor: pointer; transition: fill 120ms ease; }
+        .zone:hover { fill: rgba(31,41,55,0.22); }
+        .zone.selected { fill: rgba(31,41,55,0.36); }
+        .label { fill: #0a0a0a; font-size: 36px; font-weight: 800;
+                text-anchor: middle; dominant-baseline: middle; pointer-events: none; user-select: none; }
+      `;
+      clone.insertBefore(style, clone.firstChild);
+
+      const serializer = new XMLSerializer();
+      const svgMarkup = serializer.serializeToString(clone);
+
+      const isGlobal = this._view === 'all';
+
+      // HTML limpio con estilos mínimos
+      const html = `
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <title>Impresión del mapa anatómico</title>
+      <style>
+        html, body {
+          margin: 0;
+          padding: 0mm;
+          background: #fff;
+          text-align: center;
+        }
+        svg {
+          width: 100%;
+          height: auto;
+          display: block;
+        }
+        .hm-all-label {
+          font-family: system-ui, sans-serif;
+          font-size: 48px;
+          font-weight: 800;
+          fill: #111827;
+          text-anchor: middle;
+          dominant-baseline: middle;
+        }
+        @page {
+          size: ${isGlobal ? 'A4 landscape' : 'A4 portrait'};
+          margin: 5mm;
+        }
+      </style>
+    </head>
+    <body>
+      ${svgMarkup}
+    </body>
+    </html>
+    `;
+
+      // Abrir ventana y escribir el HTML
+      const printWin = window.open('', '_blank', 'width=1024,height=768');
+      if (!printWin) {
+        alert('El navegador bloqueó la ventana de impresión. Permite popups para continuar.');
+        return;
+      }
+
+      printWin.document.open();
+      printWin.document.write(html);
+      printWin.document.close();
+
+      // Esperar hasta que las imágenes del SVG estén listas
+      const waitForImages = () => {
+        const imgs = printWin.document.querySelectorAll('image');
+        const promises = Array.from(imgs).map(img => {
+          return new Promise(resolve => {
+            const test = new Image();
+            test.onload = test.onerror = resolve;
+            test.src = img.getAttribute('href') || img.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+          });
+        });
+        return Promise.all(promises);
+      };
+
+      waitForImages().then(() => {
+        printWin.focus();
+        printWin.print();
+        setTimeout(() => printWin.close(), 1000);
+      });
+    }
+
 
     _emit(){this.dispatchEvent(new CustomEvent('human-map-vas:select',{detail:{selected:this.getSelected()}}));}
   }
