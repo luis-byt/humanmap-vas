@@ -573,14 +573,13 @@
   <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      if (location.protocol === 'https:' || location.hostname === 'localhost') {
+      if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
         navigator.serviceWorker.register('./service-worker.js')
           .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
           .catch(err => console.error('❌ Error al registrar SW:', err));
       } else {
         console.warn('⚠️ Service Worker no disponible fuera de HTTPS o localhost.');
       }
-
     });
   }
   </script>

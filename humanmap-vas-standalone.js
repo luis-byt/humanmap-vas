@@ -172,7 +172,6 @@
       };
     }
 
-    // Captura valores asignados *antes* de que el custom element se registre
     _upgradeProperty(prop) {
       if (this.hasOwnProperty(prop)) {
         const value = this[prop];
@@ -182,8 +181,19 @@
     }
 
     connectedCallback(){
+      // Asegurar lectura inicial de atributos declarados en el HTML
+      this._view = this.getAttribute('view') || this._view || 'head_right';
+      this._readOnly = this.hasAttribute('read-only') && this.getAttribute('read-only') !== 'false';
+      this._imgRoot = this.getAttribute('img-root') || this._imgRoot;
+
       this._renderShell();
       this._renderCanvas();
+
+      // Ajustar visibilidad del botón reset al conectar
+      if (this._els?.reset) {
+        this._els.reset.style.display = this._readOnly ? 'none' : 'inline-block';
+      }
+
       this.dispatchEvent(new CustomEvent('human-map-vas:ready'));
       this.dispatchEvent(new CustomEvent('human-map-vas:readonly-change', {
         detail: { readOnly: this._readOnly }
@@ -238,6 +248,11 @@
             this._renderCanvas();
           }
 
+          // Ocultar o mostrar el botón reset según el modo
+          if (this._els?.reset) {
+            this._els.reset.style.display = this._readOnly ? 'none' : 'inline-block';
+          }
+
           // Actualizar la visibilidad de toolbar y botón de impresión
           const toolbar = this._root.querySelector('.hm-toolbar');
           const printBtn = this.shadowRoot.getElementById('printBtn');
@@ -256,12 +271,10 @@
 
     }
 
-    // Devuelve solo IDs seleccionados
     get selectedIds() {
       return Array.from(this._selected);
     }
 
-    // Asigna selección por IDs (array de strings)
     set selectedIds(ids) {
       if (!Array.isArray(ids)) return;
       this._selected = new Set(ids);
@@ -274,7 +287,6 @@
       }
     }
 
-    // Devuelve objetos completos (id, code, label, view)
     get selectedZones() {
       const map = new Map(this._zones.map(z => [z.id, z]));
       return this.selectedIds.map(id => {
@@ -283,7 +295,6 @@
       });
     }
 
-    // Asigna selección pasando objetos (tomamos los IDs)
     set selectedZones(zones) {
       if (!Array.isArray(zones)) return;
       const ids = zones.map(z => z && z.id).filter(Boolean);
@@ -306,8 +317,23 @@
       });
     }
 
-    clear(){this._selected.clear();this._renderZones();this._emit();}
-
+    clear() {
+      // Vaciar la lista de zonas seleccionadas
+      this._selected.clear();
+    
+      // Re-render según el modo actual
+      if (this._view === 'all') {
+        // Si está en vista global, redibujar todas las vistas
+        if (this._root) this._renderAllViews();
+      } else {
+        // Si es una vista individual, redibujar solo esa vista
+        if (this._root) this._renderZones();
+      }
+    
+      // Emitir el evento de actualización
+      this._emit();
+    }
+    
     _renderShell(){
       const style=document.createElement('style');
       style.textContent=STYLE;
@@ -353,9 +379,16 @@
       };
       this._els.picker.value=this._view;
       this._els.picker.addEventListener('change',()=>this.setAttribute('view',this._els.picker.value));
+
       this._els.prev.addEventListener('click',()=>this._cycle(-1));
       this._els.next.addEventListener('click',()=>this._cycle(1));
-      this._els.reset.addEventListener('click',()=>this.clear());
+
+      // Ajustar visibilidad inicial del botón reset
+      this._els.reset.style.display = this.hasAttribute('read-only') ? 'none' : 'inline-block';
+      this._els.reset.addEventListener('click', () => {
+        if (!this._readOnly) this.clear();
+      });
+
       this._els.printBtn = this.shadowRoot.getElementById('printBtn');
       this._els.printBtn.addEventListener('click', () => {
         this._els.printBtn.style.transform = 'scale(0.94)';
@@ -364,6 +397,7 @@
           this._printCanvasOnly(); // ⬅️ imprime solo el área actual
         }, 120);
       });
+
       this._els.zoomFloat = this.shadowRoot.getElementById('zoom-float');
       this._els.zoomFloat.addEventListener('click', () => this._openPreviewModal());
 
@@ -604,7 +638,6 @@
       });
     }
 
-    // Imprime solo el área visible (hm-canvas-wrap) en una nueva ventana
     _printCanvasOnly() {
       if (!this._els || !this._els.svg) return;
 
