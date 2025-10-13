@@ -1,0 +1,28 @@
+{
+  "name": "HumanMap VAS",
+  "short_name": "HumanMap",
+  "description": "Librería interactiva para visualización anatómica y zonas VAS+",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "src/logo/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "src/logo/favicon-64.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "src/logo/favicon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
+

@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Human Map VAS — Demo</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="src/logo/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="src/logo/favicon-64.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="src/logo/favicon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563EB">
   <script src="humanmap-vas-standalone.js"></script>
   <style>
     body {
@@ -224,6 +229,7 @@
           img-root="/path/to/locale/images/"
           read-only="true || false (default)"
           columns="4"(default)
+          style="--hm-height: 500px;" (default)
     -->
     <human-map-vas id="map"></human-map-vas>
 
@@ -563,5 +569,21 @@
 
     });
   </script>
+
+  <script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      if (location.protocol === 'https:' || location.hostname === 'localhost') {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('✅ Service Worker registrado:', reg.scope))
+          .catch(err => console.error('❌ Error al registrar SW:', err));
+      } else {
+        console.warn('⚠️ Service Worker no disponible fuera de HTTPS o localhost.');
+      }
+
+    });
+  }
+  </script>
+
 </body>
 </html>

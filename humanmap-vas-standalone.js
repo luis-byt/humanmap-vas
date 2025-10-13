@@ -6,7 +6,7 @@
     .hm-toolbar { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #eef2f7; background:#fafafa; }
     .hm-center { text-align:center; font-weight:600; color:#1f2937; }
     .hm-toolbar select, .hm-toolbar button { appearance:none; border:1px solid #d1d5db; border-radius:10px; padding:6px 10px; background:#fff; cursor:pointer; font-weight:500; }
-    .hm-canvas-wrap { position:relative; width:100%; height:600px; margin:auto; aspect-ratio: 2/3; background:#fff; }
+    .hm-canvas-wrap { position: relative; width: 100%; height: var(--hm-height, 500px); aspect-ratio: 2 / 3; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; margin: auto; }
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
