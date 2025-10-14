@@ -1,6 +1,6 @@
 {
   "name": "humanmap-vas",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "**HumanMap VAS** es una librería web que permite graficar el cuerpo humano con vistas anatómicas interactivas para identificar zonas según el sistema VAS. Desarrollada como *Web Component standalone*, puede integrarse fácilmente en proyectos **HTML**, **Django**, o **Vue.js**.",
   "main": "humanmap-vas-standalone.js",
   "files": [
