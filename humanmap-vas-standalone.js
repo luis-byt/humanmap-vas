@@ -36,6 +36,11 @@
     .hm-dropdown.active { display: flex; }
     .hm-dropdown button { background: none; border: none; padding: 8px 16px; text-align: left; font-size: 14px; cursor: pointer; transition: background 0.15s; }
     .hm-dropdown button:hover { background: #f3f4f6; }
+    .hm-loader { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(2px); z-index: 1000; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
+    .hm-loader.active { opacity: 1; pointer-events: all; }
+    .hm-loader::before { content: ''; width: 42px; height: 42px; border: 3px solid rgba(31,41,55,0.2); border-top-color: #3b82f6; border-radius: 50%; animation: hm-spin 1s linear infinite; }
+    .hm-loader span { margin-top: 10px; font-size: 14px; color: #1f2937; font-weight: 500; letter-spacing: 0.3px; opacity: 0.85; }
+    @keyframes hm-spin { to { transform: rotate(360deg); } }
 
   `;
 
@@ -191,6 +196,7 @@
       this._view = this.getAttribute('view') || this._view || 'head_right';
       this._readOnly = this.hasAttribute('read-only') && this.getAttribute('read-only') !== 'false';
       this._imgRoot = this.getAttribute('img-root') || this._imgRoot;
+      this._syncUrl = this.getAttribute('sync-url') || null;
 
       this._renderShell();
       this._renderCanvas();
@@ -211,9 +217,14 @@
           this._resizeTimer = setTimeout(() => this._renderAllViews(), 150);
         }
       });
+
+      // 🔄 Cargar zonas seleccionadas si hay endpoint definido
+      if (this._syncUrl) {
+        this._loadZonesFromBackend();
+      }
     }
 
-    static get observedAttributes() { return ['view', 'img-root', 'read-only']; }
+    static get observedAttributes() { return ['view', 'img-root', 'read-only', 'sync-url']; }
 
     attributeChangedCallback (name, oldValue, newValue) {
       if (oldValue === newValue) return;
@@ -275,6 +286,12 @@
         return;
       }
 
+      if (name === 'sync-url') {
+        this._syncUrl = newValue || null;
+        if (this._syncUrl && this._root) this._loadZonesFromBackend();
+        return;
+      }
+
     }
 
     get selectedIds() {
@@ -323,6 +340,13 @@
       });
     }
 
+    get syncUrl() { return this._syncUrl; }
+
+    set syncUrl(url) {
+      this._syncUrl = url;
+      if (this._root && url) this._loadZonesFromBackend();
+    }
+
     clear() {
       // Vaciar la lista de zonas seleccionadas
       this._selected.clear();
@@ -339,7 +363,7 @@
       // Emitir el evento de actualización
       this._emit();
     }
-    
+
     _renderShell(){
       const style=document.createElement('style');
       style.textContent=STYLE;
@@ -374,6 +398,9 @@
             <g id="bg"></g>
             <g id="zones"></g>
           </svg>
+          <div class="hm-loader" id="hm-loader">
+            <span>Cargando zonas...</span>
+          </div>
           <button id="printBtn" title="Imprimir vista" class="hm-print-btn">🖨️</button>
           <button id="zoom-float" class="hm-zoom-float" title="Ampliar vista">⤢</button>
         </div>`;
@@ -387,7 +414,8 @@
         zones:this.shadowRoot.getElementById('zones'),
         prev:this.shadowRoot.getElementById('prev'),
         next:this.shadowRoot.getElementById('next'),
-        reset:this.shadowRoot.getElementById('reset')
+        reset:this.shadowRoot.getElementById('reset'),
+        loader: this.shadowRoot.getElementById('hm-loader')
       };
       this._els.picker.value=this._view;
       this._els.picker.addEventListener('change',()=>this.setAttribute('view',this._els.picker.value));
@@ -966,9 +994,6 @@
 
     }
 
-    // ─────────────────────────────────────────────
-    // 🔔 Mostrar notificación temporal (toast)
-    // ─────────────────────────────────────────────
     _showToast(msg, type = 'success') {
       const toast = document.createElement('div');
       toast.textContent = msg;
@@ -992,7 +1017,31 @@
         setTimeout(() => toast.remove(), 400);
       }, 1500);
     }
+
+    _loadZonesFromBackend() {
+      if (!this._syncUrl) return;
     
+      this._els?.loader?.classList.add('active');
+    
+      fetch(this._syncUrl, { method: 'GET' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'ok' && Array.isArray(data.zones)) {
+            this.selectedZones = data.zones;
+            this._showToast(`✅ ${data.zones.length} zonas cargadas del servidor`);
+          } else {
+            console.warn('Respuesta no válida del backend:', data);
+            this._showToast('⚠️ No se pudieron cargar las zonas', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('❌ Error al obtener zonas:', err);
+          this._showToast('❌ Error al conectar con el servidor', 'error');
+        })
+        .finally(() => {
+          this._els?.loader?.classList.remove('active');
+        });
+    }
 
     _emit(){this.dispatchEvent(new CustomEvent('human-map-vas:select',{detail:{selected:this.getSelected()}}));}
   }
