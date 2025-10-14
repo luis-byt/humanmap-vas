@@ -30,6 +30,12 @@
     .hm-zoom-inner { transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
     .hm-zoom-modal.active .hm-zoom-inner { transform: scale(1); opacity: 1; }
     .hm-zoom-hint { position: absolute; bottom: 10px; right: 20px; color: rgba(0,0,0,0.4); font-size: 14px; font-family: system-ui, sans-serif; background: rgba(255,255,255,0.7); padding: 4px 10px; border-radius: 6px; pointer-events: none; user-select: none; transition: opacity 1s ease 2s; opacity: 1; }
+    .hm-toolbar .menu-btn { font-size: 18px; width: 36px; height: 32px; line-height: 1; text-align: center; background: #fff; border: 1px solid #d1d5db; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+    .hm-toolbar .menu-btn:hover { background: #f3f4f6; }
+    .hm-dropdown { position: absolute; right: 10px; top: 46px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: none; flex-direction: column; z-index: 9999; }
+    .hm-dropdown.active { display: flex; }
+    .hm-dropdown button { background: none; border: none; padding: 8px 16px; text-align: left; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .hm-dropdown button:hover { background: #f3f4f6; }
 
   `;
 
@@ -354,6 +360,12 @@
             <button id="next">▶</button>
             <button id="reset">🔄</button>
             <select id="picker">${opts}</select>
+            <button id="menu" class="menu-btn" title="Más opciones">⋮</button>
+            <div id="dropdown" class="hm-dropdown">
+              <button id="export">📤 Exportar zonas (.json)</button>
+              <button id="import">📥 Importar zonas (.json)</button>
+              <input id="fileInput" type="file" accept=".json" style="display:none;">
+            </div>
           </div>
         </div>
         <div class="hm-canvas-wrap">
@@ -400,6 +412,67 @@
 
       this._els.zoomFloat = this.shadowRoot.getElementById('zoom-float');
       this._els.zoomFloat.addEventListener('click', () => this._openPreviewModal());
+
+      // Dropdown menú
+      this._els.menu = this.shadowRoot.getElementById('menu');
+      this._els.dropdown = this.shadowRoot.getElementById('dropdown');
+      this._els.exportBtn = this.shadowRoot.getElementById('export');
+      this._els.importBtn = this.shadowRoot.getElementById('import');
+      this._els.fileInput = this.shadowRoot.getElementById('fileInput');
+
+      // Mostrar/ocultar menú
+      this._els.menu.addEventListener('click', e => {
+        e.stopPropagation();
+        this._els.dropdown.classList.toggle('active');
+      });
+
+      // Cerrar al hacer clic fuera
+      document.addEventListener('click', e => {
+        if (!this.shadowRoot.contains(e.target)) {
+          this._els.dropdown.classList.remove('active');
+        }
+      });
+
+      // Exportar zonas seleccionadas
+      this._els.exportBtn.addEventListener('click', () => {
+        this._els.dropdown.classList.remove('active');
+        const data = JSON.stringify(this.selectedZones, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'zonas_seleccionadas.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        this._showToast('✅ Zonas exportadas correctamente');
+      });
+
+      // Importar zonas desde archivo .json
+      this._els.importBtn.addEventListener('click', () => {
+        this._els.dropdown.classList.remove('active');
+        this._els.fileInput.click();
+      });
+
+      this._els.fileInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = evt => {
+          try {
+            const zones = JSON.parse(evt.target.result);
+            if (Array.isArray(zones)) {
+              this.selectedZones = zones;
+              this._emit();
+              this._showToast('✅ Zonas importadas correctamente');
+            } else {
+              this._showToast('⚠️ El archivo no tiene un formato válido.', 'error');
+            }
+          } catch (err) {
+            this._showToast('⚠️ Error al leer el archivo JSON.', 'error');
+          }
+        };
+        reader.readAsText(file);
+      });
 
     }
 
@@ -892,6 +965,34 @@
       });
 
     }
+
+    // ─────────────────────────────────────────────
+    // 🔔 Mostrar notificación temporal (toast)
+    // ─────────────────────────────────────────────
+    _showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.textContent = msg;
+      Object.assign(toast.style, {
+        position: 'absolute',
+        top: '8px',
+        right: '10px',
+        background: type === 'error' ? '#dc2626' : '#10b981',
+        color: '#fff',
+        padding: '6px 10px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        opacity: '0',
+        transition: 'opacity 0.3s ease',
+        zIndex: 9999
+      });
+      this._root.appendChild(toast);
+      requestAnimationFrame(() => (toast.style.opacity = '1'));
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 400);
+      }, 1500);
+    }
+    
 
     _emit(){this.dispatchEvent(new CustomEvent('human-map-vas:select',{detail:{selected:this.getSelected()}}));}
   }
