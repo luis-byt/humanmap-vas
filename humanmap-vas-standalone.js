@@ -2,11 +2,17 @@
 (function(){
   const STYLE = `
     :host { display:block; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Noto Sans, sans-serif; color:#111827; }
-    .hm { position: relative; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; background: #fff; }
+    .hm { position: relative; border: var(--hm-border, 1px solid #e5e7eb); border-radius: var(--hm-border-radius, 14px); overflow: hidden; background: var(--hm-background, #fff); }
     .hm-toolbar { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid #eef2f7; background:#fafafa; }
     .hm-center { text-align:center; font-weight:600; color:#1f2937; }
     .hm-toolbar select, .hm-toolbar button { appearance:none; border:1px solid #d1d5db; border-radius:10px; padding:6px 10px; background:#fff; cursor:pointer; font-weight:500; }
-    .hm-canvas-wrap { position: relative; width: 100%; height: var(--hm-height, 500px); aspect-ratio: 2 / 3; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .hm-toolbar .menu-btn { font-size: 18px; width: 36px; height: 32px; line-height: 1; text-align: center; background: #fff; border: 1px solid #d1d5db; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+    .hm-toolbar .menu-btn:hover { background: #f3f4f6; }
+    .hm-dropdown { position: absolute; right: 10px; top: 46px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: none; flex-direction: column; z-index: 9999; }
+    .hm-dropdown.active { display: flex; }
+    .hm-dropdown button { background: none; border: none; padding: 8px 16px; text-align: left; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .hm-dropdown button:hover { background: #f3f4f6; }
+    .hm-canvas-wrap { position: relative; width: var(--hm-width, 100%); height: var(--hm-height, 500px); aspect-ratio: 2 / 3; background: var(--hm-background, #fff); display: flex; align-items: center; justify-content: center; overflow: hidden; }
     svg.hm-svg { position:absolute; inset:0; width:100%; height:100%; margin: auto; }
     .zone { fill: rgba(31,41,55,0); transition: fill 120ms ease; cursor: pointer; }
     .zone:hover { fill: rgba(31,41,55,0.22); }
@@ -30,12 +36,6 @@
     .hm-zoom-inner { transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; }
     .hm-zoom-modal.active .hm-zoom-inner { transform: scale(1); opacity: 1; }
     .hm-zoom-hint { position: absolute; bottom: 10px; right: 20px; color: rgba(0,0,0,0.4); font-size: 14px; font-family: system-ui, sans-serif; background: rgba(255,255,255,0.7); padding: 4px 10px; border-radius: 6px; pointer-events: none; user-select: none; transition: opacity 1s ease 2s; opacity: 1; }
-    .hm-toolbar .menu-btn { font-size: 18px; width: 36px; height: 32px; line-height: 1; text-align: center; background: #fff; border: 1px solid #d1d5db; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
-    .hm-toolbar .menu-btn:hover { background: #f3f4f6; }
-    .hm-dropdown { position: absolute; right: 10px; top: 46px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: none; flex-direction: column; z-index: 9999; }
-    .hm-dropdown.active { display: flex; }
-    .hm-dropdown button { background: none; border: none; padding: 8px 16px; text-align: left; font-size: 14px; cursor: pointer; transition: background 0.15s; }
-    .hm-dropdown button:hover { background: #f3f4f6; }
     .hm-loader { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(2px); z-index: 1000; opacity: 0; transition: opacity 0.25s ease; pointer-events: none; }
     .hm-loader.active { opacity: 1; pointer-events: all; }
     .hm-loader::before { content: ''; width: 42px; height: 42px; border: 3px solid rgba(31,41,55,0.2); border-top-color: #3b82f6; border-radius: 50%; animation: hm-spin 1s linear infinite; }

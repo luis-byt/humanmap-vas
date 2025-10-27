@@ -229,7 +229,13 @@
           img-root="/path/to/locale/images/"
           read-only="true || false (default)"
           columns="4"(default)
-          style="--hm-height: 500px;" (default)
+          style="
+            --hm-border: 1px solid #e5e7eb; 
+            --hm-border-radius: 14px; 
+            --hm-width: 100%;
+            --hm-height: 500px;
+            --hm-background: #fff;
+          " (default)
     -->
     <human-map-vas id="map"></human-map-vas>
 
