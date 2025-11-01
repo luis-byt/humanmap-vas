@@ -12,12 +12,18 @@ const URLS_TO_CACHE = [
   "./src/logo/favicon-32.png",
   "./src/logo/favicon-64.png",
   "./src/logo/favicon-180.png",
-  "./src/img/head_right.svg",
-  "./src/img/head_left.svg",
-  "./src/img/neck_right.svg",
-  "./src/img/neck_left.svg",
-  "./src/img/torax_front.svg",
-  "./src/img/torax_back.svg"
+  "./src/img/light/head_right.svg",
+  "./src/img/light/head_left.svg",
+  "./src/img/light/neck_right.svg",
+  "./src/img/light/neck_left.svg",
+  "./src/img/light/torax_front.svg",
+  "./src/img/light/torax_back.svg",
+  "./src/img/dark/head_right.svg",
+  "./src/img/dark/head_left.svg",
+  "./src/img/dark/neck_right.svg",
+  "./src/img/dark/neck_left.svg",
+  "./src/img/dark/torax_front.svg",
+  "./src/img/dark/torax_back.svg"
 ];
 
 // Instalar y precachear recursos
