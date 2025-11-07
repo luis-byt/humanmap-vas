@@ -120,6 +120,7 @@
       display: none;
       flex-direction: column;
       z-index: 9999;
+      min-width: 180px;
     }
 
     .hm-dropdown.active { display: flex; }
@@ -127,15 +128,79 @@
     .hm-dropdown button {
       background: none;
       border: none;
+      border-radius: 0;
       padding: 8px 16px;
       text-align: left;
       font-size: 14px;
       cursor: pointer;
       transition: background 0.15s;
+      width: 100%;
       color: var(--hm-text-color);
     }
 
     .hm-dropdown button:hover {
+      background: var(--hm-btn-hover);
+    }
+
+    .hm-dropdown hr {
+      margin: 2px auto;
+      width: 94%;
+      background: var(--hm-toolbar-border);
+      border: none;
+      height: 1px;
+      border-radius: 8px;
+    }
+
+    .hm-dropdown-item {
+      position: relative;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--hm-text-color);
+    }
+
+    .hm-dropdown-item:hover {
+      background: var(--hm-btn-hover); 
+    }
+
+    .hm-submenu {
+      position: absolute;
+      top: 2px;
+      right: calc(100% + 4px);
+      background: var(--hm-background);
+      border: 1px solid var(--hm-toolbar-border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      flex-direction: column;
+      min-width: 200px;
+      z-index: 10000;
+      padding: 4px 0;
+    }
+
+    .hm-dropdown-item:hover .hm-submenu {
+      display: flex;
+    }
+
+    .hm-submenu.active {
+      display: flex;
+    }
+
+    .hm-submenu button {
+      background: none;
+      border: none;
+      text-align: left;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--hm-text-color);
+    }
+
+    .hm-submenu button:hover {
       background: var(--hm-btn-hover);
     }
 
@@ -629,14 +694,11 @@
 
           // Actualizar la visibilidad de toolbar y botón de impresión
           const toolbar = this._root.querySelector('.hm-toolbar');
-          const printBtn = this.shadowRoot.getElementById('printBtn');
 
           if (this._view === 'all' && this._readOnly) {
             if (toolbar) toolbar.style.display = 'none';
-            if (printBtn) printBtn.style.display = 'block';
           } else {
             if (toolbar) toolbar.style.display = '';
-            if (printBtn) printBtn.style.display = 'none';
           }
         }
 
@@ -759,26 +821,39 @@
         ...VIEWS.map(v => `<option value="${v.id}">${v.label}</option>`)
       ].join('');
 
-      this._root.innerHTML=`
+      this._root.innerHTML = `
         <div class="hm-toolbar">
           <button id="prev">◀</button>
           <div class="hm-center"><span id="cur"></span></div>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;position:relative;">
             <button id="next">▶</button>
             <button id="reset">🔄</button>
             <select id="picker">${opts}</select>
             <button id="menu" class="menu-btn" title="Más opciones">⋮</button>
             <div id="dropdown" class="hm-dropdown">
-              <button data-action="export">📤 Exportar zonas (.json)</button>
-              <button data-action="import">📥 Importar zonas (.json)</button>
-              <hr style="margin:4px 0;">
-              <div style="padding: 4px 16px; font-weight:600;">Tema</div>
-              <button data-action="theme-light">🌞 Claro</button>
-              <button data-action="theme-dark">🌙 Oscuro</button>
+              <div class="hm-dropdown-item" data-submenu="theme">
+                🎨 Temas
+                <div class="hm-submenu">
+                  <button data-action="theme-light">🌞 Claro</button>
+                  <button data-action="theme-dark">🌙 Oscuro</button>
+                </div>
+              </div>
+
+              <div class="hm-dropdown-item" data-submenu="data">
+                📂 Datos
+                <div class="hm-submenu">
+                  <button data-action="export">📤 Exportar zonas (.json)</button>
+                  <button data-action="import">📥 Importar zonas (.json)</button>
+                </div>
+              </div>
+
+              <hr>
+              <button data-action="print">🖨️ Imprimir</button>
               <input id="fileInput" type="file" accept=".json" style="display:none;">
             </div>
           </div>
         </div>
+
         <div class="hm-canvas-wrap">
           <svg class="hm-svg" xmlns="http://www.w3.org/2000/svg">
             <defs id="defs"></defs>
@@ -788,9 +863,10 @@
           <div class="hm-loader" id="hm-loader">
             <span>Cargando zonas...</span>
           </div>
-          <button id="printBtn" title="Imprimir vista" class="hm-print-btn">🖨️</button>
           <button id="zoom-float" class="hm-zoom-float" title="Ampliar vista">⤢</button>
-        </div>`;
+        </div>
+      `;
+
       this.shadowRoot.append(style,this._root);
 
       this._els={
@@ -804,6 +880,7 @@
         reset:this.shadowRoot.getElementById('reset'),
         loader: this.shadowRoot.getElementById('hm-loader')
       };
+
       this._els.picker.value=this._view;
       this._els.picker.addEventListener('change',()=>this.setAttribute('view',this._els.picker.value));
 
@@ -816,15 +893,6 @@
         if (!this._readOnly) this.clear();
       });
 
-      this._els.printBtn = this.shadowRoot.getElementById('printBtn');
-      this._els.printBtn.addEventListener('click', () => {
-        this._els.printBtn.style.transform = 'scale(0.94)';
-        setTimeout(() => {
-          this._els.printBtn.style.transform = '';
-          this._printCanvasOnly(); // ⬅️ imprime solo el área actual
-        }, 120);
-      });
-
       this._els.zoomFloat = this.shadowRoot.getElementById('zoom-float');
       this._els.zoomFloat.addEventListener('click', () => this._openPreviewModal());
 
@@ -832,6 +900,31 @@
       this._els.menu = this.shadowRoot.getElementById('menu');
       this._els.dropdown = this.shadowRoot.getElementById('dropdown');
       this._els.fileInput = this.shadowRoot.getElementById('fileInput');
+
+      // Submenús estables: Tema y Datos
+      const temaItem = this._root.querySelector('.hm-dropdown-item[data-submenu="theme"]');
+      const datosItem = this._root.querySelector('.hm-dropdown-item[data-submenu="data"]');
+
+    // Activar/desactivar submenús sin perder el hover
+    function toggleSubmenu(item) {
+      const submenu = item.querySelector('.hm-submenu');
+      const isActive = submenu.classList.contains('active');
+      // Cerrar todos los demás
+      this._root.querySelectorAll('.hm-submenu.active').forEach(s => s.classList.remove('active'));
+      if (!isActive) submenu.classList.add('active');
+    }
+
+    // Asignar eventos
+    [temaItem, datosItem].forEach(item => {
+      item.addEventListener('mouseenter', () => toggleSubmenu.call(this, item));
+      item.addEventListener('mouseleave', (e) => {
+        // Retrasar un poco el cierre para permitir mover el cursor
+        setTimeout(() => {
+          const submenu = item.querySelector('.hm-submenu');
+          if (!submenu.matches(':hover')) submenu.classList.remove('active');
+        }, 150);
+      });
+    });
 
       // Mostrar/ocultar menú
       this._els.menu.addEventListener('click', e => {
@@ -851,22 +944,25 @@
         if (!action) return;
       
         switch (action) {
-          case 'export':
-            this.exportSelectedZones();
-            break;
-          case 'import':
-            this.importZonesFromFile();
-            break;
           case 'theme-light':
             this.setAttribute('theme', 'light');
             break;
           case 'theme-dark':
             this.setAttribute('theme', 'dark');
             break;
+          case 'export':
+            this._exportZonesToJSON();
+            break;
+          case 'import':
+            this._importZonesFromJSON();
+            break;
+          case 'print':
+            this._printCanvasOnly();
+            break;
         }
       
         this._els.dropdown.classList.remove('active');
-      });      
+      });
 
       this._els.fileInput.addEventListener('change', e => {
         const file = e.target.files[0];
@@ -905,16 +1001,6 @@
           toolbar.style.display = 'none';
         } else {
           toolbar.style.display = '';
-        }
-      }
-
-      // Mostrar botón de impresión solo en modo global + solo lectura
-      const printBtn = this.shadowRoot.getElementById('printBtn');
-      if (printBtn) {
-        if (this._view === 'all' && this._readOnly) {
-          printBtn.style.display = 'block';
-        } else {
-          printBtn.style.display = 'none';
         }
       }
 
@@ -1124,6 +1210,23 @@
         t.setAttribute('class','label');
         g.appendChild(t);
       });
+    }
+
+    _exportZonesToJSON() {
+      const data = this.selectedZones;
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'humanmap-zones.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      this._showToast('✅ Zonas exportadas correctamente');
+    }
+    
+    _importZonesFromJSON() {
+      this._els.dropdown.classList.remove('active');
+      this._els.fileInput.click();
     }
 
     _printCanvasOnly() {
